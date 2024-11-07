@@ -1,11 +1,11 @@
+import 'package:sane/src/impl/sane_sync.dart';
 import 'package:sane/src/isolate_messages/interface.dart';
-import 'package:sane/src/sane.dart';
 import 'package:sane/src/structures.dart';
 
 class StartMessage implements IsolateMessage {
   StartMessage({required this.saneHandle});
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
 
   @override
   Future<StartResponse> handle(Sane sane) async {

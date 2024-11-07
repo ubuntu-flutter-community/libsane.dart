@@ -1,5 +1,5 @@
+import 'package:sane/src/impl/sane_sync.dart';
 import 'package:sane/src/isolate_messages/interface.dart';
-import 'package:sane/src/sane.dart';
 import 'package:sane/src/structures.dart';
 
 class ControlValueOptionMessage<T>
@@ -11,7 +11,7 @@ class ControlValueOptionMessage<T>
     this.value,
   });
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
   final int index;
   final SaneAction action;
   final T? value;

@@ -4,15 +4,6 @@ import 'package:ffi/ffi.dart' as ffi;
 import 'package:sane/src/bindings.g.dart';
 import 'package:sane/src/structures.dart';
 
-SaneDevice saneDeviceFromNative(SANE_Device device) {
-  return SaneDevice(
-    name: dartStringFromSaneString(device.name) ?? '',
-    vendor: dartStringFromSaneString(device.vendor) ?? '',
-    model: dartStringFromSaneString(device.model) ?? '',
-    type: dartStringFromSaneString(device.type) ?? '',
-  );
-}
-
 SaneFrameFormat saneFrameFormatFromNative(SANE_Frame frame) {
   return switch (frame) {
     SANE_Frame.FRAME_GRAY => SaneFrameFormat.gray,
@@ -185,13 +176,6 @@ List<SaneOptionInfo> saneOptionInfoFromNative(int bitset) {
   return infos;
 }
 
-DartSANE_Word saneBoolFromIOMode(SaneIOMode mode) {
-  return switch (mode) {
-    SaneIOMode.blocking => SANE_FALSE,
-    SaneIOMode.nonBlocking => SANE_TRUE,
-  };
-}
-
 bool dartBoolFromSaneBool(int bool) {
   switch (bool) {
     case 0:
@@ -203,17 +187,26 @@ bool dartBoolFromSaneBool(int bool) {
   }
 }
 
-DartSANE_Word saneBoolFromDartBool(bool bool) {
-  return bool ? SANE_TRUE : SANE_FALSE;
-}
-
 String? dartStringFromSaneString(SANE_String_Const stringPointer) {
   if (stringPointer == ffi.nullptr) return null;
   return stringPointer.cast<ffi.Utf8>().toDartString();
 }
 
+@Deprecated('Use extension')
 SANE_String_Const saneStringFromDartString(String string) {
-  return string.toNativeUtf8().cast<SANE_Char>();
+  return string.toSaneString();
+}
+
+extension SaneStringExtensions on SANE_String_Const {
+  String toDartString() => cast<ffi.Utf8>().toDartString();
+}
+
+extension StringExtensions on String {
+  SANE_String_Const toSaneString() => toNativeUtf8().cast<SANE_Char>();
+}
+
+extension BoolExtensions on bool {
+  DartSANE_Word get asSaneBool => this ? SANE_TRUE : SANE_FALSE;
 }
 
 const int _saneFixedScaleFactor = 1 << SANE_FIXED_SCALE_SHIFT;
