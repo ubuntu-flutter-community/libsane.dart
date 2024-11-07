@@ -1,28 +1,16 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:logging/logging.dart';
 import 'package:sane/sane.dart';
+import 'package:sane/src/sane.dart';
 
 final _logger = Logger('sane.dev');
 
 class SaneDev implements Sane {
   @override
-  Future<void> cancel(SaneHandle handle) {
-    return Future.delayed(const Duration(seconds: 1), () {
-      _logger.finest('sane_cancel()');
-    });
-  }
-
-  @override
-  Future<void> close(SaneHandle handle) {
-    return Future.delayed(const Duration(seconds: 1), () {
-      _logger.finest('sane_close()');
-    });
-  }
-
-  @override
   Future<SaneOptionResult<bool>> controlBoolOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     bool? value,
@@ -35,7 +23,7 @@ class SaneDev implements Sane {
 
   @override
   Future<SaneOptionResult<Null>> controlButtonOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
   }) {
     return Future.delayed(const Duration(seconds: 1), () {
@@ -46,7 +34,7 @@ class SaneDev implements Sane {
 
   @override
   Future<SaneOptionResult<double>> controlFixedOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     double? value,
@@ -59,7 +47,7 @@ class SaneDev implements Sane {
 
   @override
   Future<SaneOptionResult<int>> controlIntOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     int? value,
@@ -72,7 +60,7 @@ class SaneDev implements Sane {
 
   @override
   Future<SaneOptionResult<String>> controlStringOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     String? value,
@@ -84,15 +72,14 @@ class SaneDev implements Sane {
   }
 
   @override
-  Future<void> exit() {
+  Future<void> dispose() {
     return Future(() {
       _logger.finest('sane_exit()');
     });
   }
 
   @override
-  Future<List<SaneOptionDescriptor>> getAllOptionDescriptors(
-    SaneHandle handle,
+  Future<List<SaneOptionDescriptor>> getAllOptionDescriptors(int handle,
   ) {
     return Future.delayed(const Duration(seconds: 1), () {
       _logger.finest('sane_getAllOptionDescriptors()');
@@ -113,26 +100,19 @@ class SaneDev implements Sane {
   }
 
   @override
-  Future<List<SaneDevice>> getDevices({
+  Future<List<SaneDevDevice>> getDevices({
     required bool localOnly,
   }) {
     return Future.delayed(const Duration(seconds: 1), () {
       _logger.finest('sane_getDevices()');
       return [
-        for (var i = 0; i < 3; i++)
-          SaneDevice(
-            name: 'name $i',
-            vendor: 'Vendor$i',
-            model: 'Model$i',
-            type: 'Type$i',
-          ),
+        for (var i = 0; i < 3; i++) SaneDevDevice(i),
       ];
     });
   }
 
   @override
-  Future<SaneOptionDescriptor> getOptionDescriptor(
-    SaneHandle handle,
+  Future<SaneOptionDescriptor> getOptionDescriptor(int handle,
     int index,
   ) {
     return Future.delayed(const Duration(seconds: 1), () {
@@ -152,7 +132,7 @@ class SaneDev implements Sane {
   }
 
   @override
-  Future<SaneParameters> getParameters(SaneHandle handle) {
+  Future<SaneParameters> getParameters(int handle) {
     return Future.delayed(const Duration(seconds: 1), () {
       _logger.finest('sane_getParameters()');
       return SaneParameters(
@@ -165,35 +145,35 @@ class SaneDev implements Sane {
       );
     });
   }
+}
+
+class SaneDevDevice implements SaneDevice {
+  const SaneDevDevice(this.index);
+
+  final int index;
 
   @override
-  Future<int> init({
-    AuthCallback? authCallback,
-  }) {
-    return Future(() {
-      _logger.finest('sane_init()');
-      return 1;
-    });
-  }
-
-  @override
-  Future<SaneHandle> open(String deviceName) {
+  Future<void> cancel() {
     return Future.delayed(const Duration(seconds: 1), () {
-      _logger.finest('sane_open()');
-      return SaneHandle(deviceName: deviceName);
+      _logger.finest('sane_cancel()');
     });
   }
 
   @override
-  Future<SaneHandle> openDevice(SaneDevice device) {
+  Future<void> close() {
     return Future.delayed(const Duration(seconds: 1), () {
-      _logger.finest('sane_openDevice()');
-      return SaneHandle(deviceName: device.name);
+      _logger.finest('sane_close()');
     });
   }
 
   @override
-  Future<Uint8List> read(SaneHandle handle, int bufferSize) {
+  String get model => 'Model $index';
+
+  @override
+  String get name => 'Name $index';
+
+  @override
+  Future<Uint8List> read({required int bufferSize}) {
     return Future.delayed(const Duration(seconds: 1), () {
       _logger.finest('sane_read()');
       return Uint8List.fromList([]);
@@ -201,16 +181,15 @@ class SaneDev implements Sane {
   }
 
   @override
-  Future<void> setIOMode(SaneHandle handle, SaneIOMode mode) {
-    return Future.delayed(const Duration(seconds: 1), () {
-      _logger.finest('sane_setIOMode()');
-    });
-  }
-
-  @override
-  Future<void> start(SaneHandle handle) {
+  Future<void> start() {
     return Future.delayed(const Duration(seconds: 1), () {
       _logger.finest('sane_start()');
     });
   }
+
+  @override
+  String get type => 'Type $index';
+
+  @override
+  String? get vendor => 'Vendor $index';
 }

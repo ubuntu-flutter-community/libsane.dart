@@ -18,5 +18,5 @@ class OpenMessage implements IsolateMessage<OpenResponse> {
 class OpenResponse implements IsolateResponse {
   OpenResponse({required this.handle});
 
-  final SaneHandle handle;
+  final int handle;
 }

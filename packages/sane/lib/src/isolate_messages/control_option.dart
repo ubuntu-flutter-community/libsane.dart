@@ -11,7 +11,7 @@ class ControlValueOptionMessage<T>
     this.value,
   });
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
   final int index;
   final SaneAction action;
   final T? value;

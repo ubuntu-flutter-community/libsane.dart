@@ -9,7 +9,7 @@ class GetOptionDescriptorMessage
     required this.index,
   });
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
   final int index;
 
   @override

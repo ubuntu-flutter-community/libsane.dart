@@ -1,126 +1,89 @@
-import 'dart:isolate';
+import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:sane/sane.dart';
+import 'package:sane/src/exceptions.dart';
+import 'package:sane/src/isolate.dart';
 import 'package:sane/src/isolate_messages/cancel.dart';
 import 'package:sane/src/isolate_messages/close.dart';
 import 'package:sane/src/isolate_messages/control_button_option.dart';
 import 'package:sane/src/isolate_messages/control_option.dart';
-import 'package:sane/src/isolate_messages/exception.dart';
 import 'package:sane/src/isolate_messages/exit.dart';
 import 'package:sane/src/isolate_messages/get_all_option_descriptors.dart';
 import 'package:sane/src/isolate_messages/get_devices.dart';
 import 'package:sane/src/isolate_messages/get_option_descriptor.dart';
 import 'package:sane/src/isolate_messages/get_parameters.dart';
 import 'package:sane/src/isolate_messages/init.dart';
-import 'package:sane/src/isolate_messages/interface.dart';
 import 'package:sane/src/isolate_messages/open.dart';
 import 'package:sane/src/isolate_messages/read.dart';
-import 'package:sane/src/isolate_messages/set_io_mode.dart';
 import 'package:sane/src/isolate_messages/start.dart';
+import 'package:sane/src/sane.dart';
+import 'package:sane/src/structures.dart';
 
-class SaneNative implements Sane {
-  SaneNative({
-    required Sane sane,
-  }) : _sane = sane;
+class NativeSane implements Sane {
+  factory NativeSane() => _instance ??= NativeSane._();
 
-  final Sane _sane;
+  NativeSane._();
 
-  late final Isolate _isolate;
-  late final SendPort _sendPort;
+  static NativeSane? _instance;
 
-  Future<void> spawn() async {
-    final receivePort = ReceivePort();
-    _isolate = await Isolate.spawn(
-      _isolateEntryPoint,
-      _IsolateEntryPointArgs(
-        mainSendPort: receivePort.sendPort,
-        sane: _sane,
-      ),
-    );
-    _sendPort = await receivePort.first as SendPort;
+  bool get _disposed => _isolate?.exited == true;
+  SaneIsolate? _isolate;
+
+  Future<SaneIsolate> _getIsolate() async {
+    if (_isolate?.exited == true) throw SaneDisposedError();
+    return _isolate ??= await SaneIsolate.spawn();
   }
 
-  void kill() {
-    _isolate.kill(priority: Isolate.immediate);
-  }
-
-  Future<T> _sendMessage<T extends IsolateResponse>(
-    IsolateMessage<T> message,
-  ) async {
-    final replyPort = ReceivePort();
-
-    _sendPort.send(
-      _IsolateMessageEnvelope(
-        replyPort: replyPort.sendPort,
-        message: message,
-      ),
-    );
-
-    final response = await replyPort.first;
-    replyPort.close();
-
-    if (response is ExceptionResponse) {
-      Error.throwWithStackTrace(
-        response.exception,
-        response.stackTrace,
-      );
-    }
-
-    return response as T;
-  }
-
-  @override
   Future<int> init({
     AuthCallback? authCallback,
   }) async {
-    final response = await _sendMessage(InitMessage());
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(InitMessage());
     return response.versionCode;
   }
 
   @override
-  Future<void> exit() async {
-    await _sendMessage(ExitMessage());
+  Future<void> dispose({bool force = false}) async {
+    if (force) {
+      _isolate?.kill();
+      return;
+    }
+
+    if (_disposed) return;
+
+    await _isolate?.sendMessage(ExitMessage());
   }
 
   @override
   Future<List<SaneDevice>> getDevices({
     required bool localOnly,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       GetDevicesMessage(localOnly: localOnly),
     );
 
     return response.devices;
   }
 
-  @override
-  Future<SaneHandle> open(String deviceName) async {
-    final response = await _sendMessage(
+  Future<int> open(String deviceName) async {
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       OpenMessage(deviceName: deviceName),
     );
 
     return response.handle;
   }
 
-  @override
-  Future<SaneHandle> openDevice(SaneDevice device) {
+  Future<int> openDevice(SaneDevice device) {
     return open(device.name);
   }
 
-  @override
-  Future<void> close(SaneHandle handle) async {
-    await _sendMessage(
-      CloseMessage(saneHandle: handle),
-    );
-  }
-
-  @override
-  Future<SaneOptionDescriptor> getOptionDescriptor(
-    SaneHandle handle,
+  Future<SaneOptionDescriptor> getOptionDescriptor(int handle,
     int index,
   ) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       GetOptionDescriptorMessage(
         saneHandle: handle,
         index: index,
@@ -130,25 +93,24 @@ class SaneNative implements Sane {
     return response.optionDescriptor;
   }
 
-  @override
-  Future<List<SaneOptionDescriptor>> getAllOptionDescriptors(
-    SaneHandle handle,
+  Future<List<SaneOptionDescriptor>> getAllOptionDescriptors(int handle,
   ) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       GetAllOptionDescriptorsMessage(saneHandle: handle),
     );
 
     return response.optionDescriptors;
   }
 
-  @override
   Future<SaneOptionResult<bool>> controlBoolOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     bool? value,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       ControlValueOptionMessage<bool>(
         saneHandle: handle,
         index: index,
@@ -160,14 +122,14 @@ class SaneNative implements Sane {
     return response.result;
   }
 
-  @override
   Future<SaneOptionResult<int>> controlIntOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     int? value,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       ControlValueOptionMessage<int>(
         saneHandle: handle,
         index: index,
@@ -179,14 +141,14 @@ class SaneNative implements Sane {
     return response.result;
   }
 
-  @override
   Future<SaneOptionResult<double>> controlFixedOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     double? value,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       ControlValueOptionMessage<double>(
         saneHandle: handle,
         index: index,
@@ -198,14 +160,14 @@ class SaneNative implements Sane {
     return response.result;
   }
 
-  @override
   Future<SaneOptionResult<String>> controlStringOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
     required SaneAction action,
     String? value,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       ControlValueOptionMessage<String>(
         saneHandle: handle,
         index: index,
@@ -217,12 +179,12 @@ class SaneNative implements Sane {
     return response.result;
   }
 
-  @override
   Future<SaneOptionResult<Null>> controlButtonOption({
-    required SaneHandle handle,
+    required int handle,
     required int index,
   }) async {
-    final response = await _sendMessage(
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       ControlButtonOptionMessage(
         saneHandle: handle,
         index: index,
@@ -232,9 +194,9 @@ class SaneNative implements Sane {
     return response.result;
   }
 
-  @override
-  Future<SaneParameters> getParameters(SaneHandle handle) async {
-    final response = await _sendMessage(
+  Future<SaneParameters> getParameters(int handle) async {
+    final isolate = await _getIsolate();
+    final response = await isolate.sendMessage(
       GetParametersMessage(
         saneHandle: handle,
       ),
@@ -243,19 +205,74 @@ class SaneNative implements Sane {
     return response.parameters;
   }
 
-  @override
-  Future<void> start(SaneHandle handle) async {
-    await _sendMessage(
+  Future<void> start(int handle) async {
+    final isolate = await _getIsolate();
+    await isolate.sendMessage(
       StartMessage(saneHandle: handle),
     );
   }
+}
+
+class NativeSaneDevice implements SaneDevice {
+  NativeSaneDevice({
+    required NativeSane sane,
+    required this.name,
+    required this.type,
+    required this.vendor,
+    required this.model,
+  }) : _sane = sane;
+
+  final NativeSane _sane;
+
+  bool _closed = false;
+
+  int? _handlePointer;
 
   @override
-  Future<Uint8List> read(SaneHandle handle, int bufferSize) async {
-    final response = await _sendMessage(
+  final String name;
+
+  @override
+  final String type;
+
+  @override
+  final String? vendor;
+
+  @override
+  final String model;
+
+  @override
+  Future<void> cancel() async {
+    if (_closed) return;
+
+    final isolate = _sane._isolate;
+
+    if (isolate == null || _handlePointer == null) return;
+
+    final message = CancelMessage(_handlePointer!);
+    await isolate.sendMessage(message);
+  }
+
+  @override
+  Future<void> close() async {
+    if (_closed) return;
+
+    _closed = true;
+
+    final isolate = _sane._isolate;
+
+    if (isolate == null || _handlePointer == null) return;
+
+    final message = CloseMessage(_handlePointer!);
+    await isolate.sendMessage(message);
+  }
+
+  @override
+  Future<Uint8List> read({required int bufferSize}) async {
+    final isolate = await _sane._getIsolate();
+    final response = await isolate.sendMessage(
       ReadMessage(
-        saneHandle: handle,
         bufferSize: bufferSize,
+        saneHandle: _handle,
       ),
     );
 
@@ -263,60 +280,5 @@ class SaneNative implements Sane {
   }
 
   @override
-  Future<void> cancel(SaneHandle handle) async {
-    await _sendMessage(
-      CancelMessage(saneHandle: handle),
-    );
-  }
-
-  @override
-  Future<void> setIOMode(
-    SaneHandle handle,
-    SaneIOMode ioMode,
-  ) async {
-    await _sendMessage(
-      SetIOModeMessage(saneHandle: handle, ioMode: ioMode),
-    );
-  }
-}
-
-class _IsolateEntryPointArgs {
-  _IsolateEntryPointArgs({
-    required this.mainSendPort,
-    required this.sane,
-  });
-
-  final SendPort mainSendPort;
-  final Sane sane;
-}
-
-void _isolateEntryPoint(_IsolateEntryPointArgs args) {
-  final isolateReceivePort = ReceivePort();
-  args.mainSendPort.send(isolateReceivePort.sendPort);
-
-  final sane = args.sane;
-  isolateReceivePort.cast<_IsolateMessageEnvelope>().listen((envelope) async {
-    late IsolateResponse response;
-
-    try {
-      response = await envelope.message.handle(sane);
-    } on SaneException catch (exception, stackTrace) {
-      response = ExceptionResponse(
-        exception: exception,
-        stackTrace: stackTrace,
-      );
-    }
-
-    envelope.replyPort.send(response);
-  });
-}
-
-class _IsolateMessageEnvelope {
-  _IsolateMessageEnvelope({
-    required this.replyPort,
-    required this.message,
-  });
-
-  final SendPort replyPort;
-  final IsolateMessage message;
+  FutureOr<void> start() {}
 }

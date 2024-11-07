@@ -5,7 +5,7 @@ import 'package:sane/src/structures.dart';
 class GetParametersMessage implements IsolateMessage<GetParametersResponse> {
   GetParametersMessage({required this.saneHandle});
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
 
   @override
   Future<GetParametersResponse> handle(Sane sane) async {

@@ -5,7 +5,7 @@ import 'package:sane/src/structures.dart';
 class StartMessage implements IsolateMessage {
   StartMessage({required this.saneHandle});
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
 
   @override
   Future<StartResponse> handle(Sane sane) async {

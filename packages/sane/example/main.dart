@@ -12,7 +12,7 @@ void main(List<String> args) async {
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
 
-  final sane = SaneNative(sane: SaneDev());
+  final sane = NativeSane(sane: SaneDev());
   await sane.spawn();
 
   await sane.init();

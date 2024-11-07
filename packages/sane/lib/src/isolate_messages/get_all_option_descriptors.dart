@@ -6,7 +6,7 @@ class GetAllOptionDescriptorsMessage
     implements IsolateMessage<GetAllOptionDescriptorsResponse> {
   GetAllOptionDescriptorsMessage({required this.saneHandle});
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
 
   @override
   Future<GetAllOptionDescriptorsResponse> handle(Sane sane) async {

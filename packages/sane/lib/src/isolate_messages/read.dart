@@ -10,7 +10,7 @@ class ReadMessage implements IsolateMessage<ReadResponse> {
     required this.bufferSize,
   });
 
-  final SaneHandle saneHandle;
+  final int saneHandle;
   final int bufferSize;
 
   @override
